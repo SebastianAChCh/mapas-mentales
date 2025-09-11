@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { ExportOptions } from '../types';
 
-const Modal = styled.div<{ isOpen: boolean }>`
+const Modal = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['isOpen'].includes(prop),
+})<{ isOpen: boolean }>`
   position: fixed;
   top: 0;
   left: 0;
@@ -37,7 +39,9 @@ const FormatGrid = styled.div`
   margin-bottom: 20px;
 `;
 
-const FormatOption = styled.div<{ isSelected: boolean }>`
+const FormatOption = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['isSelected'].includes(prop),
+})<{ isSelected: boolean }>`
   background: ${props => props.isSelected ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)'};
   border: 1px solid ${props => props.isSelected ? '#4A90E2' : 'rgba(255, 255, 255, 0.1)'};
   border-radius: 8px;
@@ -104,7 +108,9 @@ const Input = styled.input`
   }
 `;
 
-const Button = styled.button<{ variant?: 'primary' | 'secondary' | 'danger' }>`
+const Button = styled.button.withConfig({
+  shouldForwardProp: (prop) => !['variant'].includes(prop),
+})<{ variant?: 'primary' | 'secondary' | 'danger' }>`
   background: ${props => {
     if (props.variant === 'primary') return '#4A90E2';
     if (props.variant === 'danger') return '#ff6b6b';

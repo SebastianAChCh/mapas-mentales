@@ -2,7 +2,9 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { Node, CanvasState } from '../types';
 
-const NodeContainer = styled.g<{ isSelected: boolean; isConnecting: boolean; isConnectingFrom: boolean; isDragging: boolean }>`
+const NodeContainer = styled.g.withConfig({
+  shouldForwardProp: (prop) => !['isSelected', 'isConnecting', 'isConnectingFrom', 'isDragging'].includes(prop),
+})<{ isSelected: boolean; isConnecting: boolean; isConnectingFrom: boolean; isDragging: boolean }>`
   cursor: ${props => {
     if (props.isDragging) return 'grabbing';
     if (props.isConnecting) return 'crosshair';
@@ -37,7 +39,9 @@ const NodeContainer = styled.g<{ isSelected: boolean; isConnecting: boolean; isC
   }
 `;
 
-const NodeCircle = styled.circle<{ color: string }>`
+const NodeCircle = styled.circle.withConfig({
+  shouldForwardProp: (prop) => !['color'].includes(prop),
+})<{ color: string }>`
   fill: ${props => props.color};
   stroke: #ffffff;
   stroke-width: 2;
@@ -103,7 +107,7 @@ const MindMapNode: React.FC<MindMapNodeProps> = ({
   onDragStart,
   onDragEnd
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editText, setEditText] = useState(node.text);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0, nodeX: 0, nodeY: 0 });

@@ -34,7 +34,9 @@ const ToolGroupTitle = styled.h3`
   letter-spacing: 0.5px;
 `;
 
-const Button = styled.button<{ active?: boolean; variant?: 'primary' | 'secondary' | 'danger' }>`
+const Button = styled.button.withConfig({
+  shouldForwardProp: (prop) => !['active', 'variant'].includes(prop),
+})<{ active?: boolean; variant?: 'primary' | 'secondary' | 'danger' }>`
   background: ${props => {
     if (props.active) return '#4A90E2';
     if (props.variant === 'danger') return '#ff6b6b';

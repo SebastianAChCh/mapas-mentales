@@ -31,7 +31,9 @@ const Title = styled.h2`
   margin: 0;
 `;
 
-const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
+const Button = styled.button.withConfig({
+  shouldForwardProp: (prop) => !['variant'].includes(prop),
+})<{ variant?: 'primary' | 'secondary' }>`
   background: ${props => props.variant === 'primary' ? '#4A90E2' : '#666666'};
   color: #ffffff;
   border: none;
@@ -54,7 +56,9 @@ const MindMapList = styled.div`
   gap: 12px;
 `;
 
-const MindMapItem = styled.div<{ isActive: boolean }>`
+const MindMapItem = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['isActive'].includes(prop),
+})<{ isActive: boolean }>`
   background: ${props => props.isActive ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)'};
   border: 1px solid ${props => props.isActive ? '#4A90E2' : 'rgba(255, 255, 255, 0.1)'};
   border-radius: 8px;
@@ -89,7 +93,9 @@ const MindMapActions = styled.div`
   margin-top: 12px;
 `;
 
-const ActionButton = styled.button<{ variant?: 'danger' | 'secondary' }>`
+const ActionButton = styled.button.withConfig({
+  shouldForwardProp: (prop) => !['variant'].includes(prop),
+})<{ variant?: 'danger' | 'secondary' }>`
   background: ${props => {
     if (props.variant === 'danger') return '#ff6b6b';
     if (props.variant === 'secondary') return '#666666';
@@ -118,7 +124,9 @@ const EmptyState = styled.div`
   padding: 40px 20px;
 `;
 
-const Modal = styled.div<{ isOpen: boolean }>`
+const Modal = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['isOpen'].includes(prop),
+})<{ isOpen: boolean }>`
   position: fixed;
   top: 0;
   left: 0;

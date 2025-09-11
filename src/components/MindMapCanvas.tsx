@@ -5,7 +5,9 @@ import { Node, Connection } from '../types';
 import MindMapNode from './MindMapNode';
 import ConnectionLine from './ConnectionLine';
 
-const CanvasContainer = styled.div<{ isConnecting: boolean }>`
+const CanvasContainer = styled.div.withConfig({
+  shouldForwardProp: (prop) => !['isConnecting'].includes(prop),
+})<{ isConnecting: boolean }>`
   width: 100%;
   height: 100vh;
   background: #1a1a1a;
