@@ -1,13 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { Node, CanvasState } from '../types';
 
-const NodeContainer = styled.g<{ isSelected: boolean; isConnecting: boolean; isConnectingFrom: boolean }>`
-  cursor: pointer;
-  transition: all 0.2s ease;
+const NodeContainer = styled.g<{ isSelected: boolean; isConnecting: boolean; isConnectingFrom: boolean; isDragging: boolean }>`
+  cursor: ${props => {
+    if (props.isDragging) return 'grabbing';
+    if (props.isConnecting) return 'crosshair';
+    return 'pointer';
+  }};
+  transition: ${props => props.isDragging ? 'none' : 'all 0.2s ease'};
   
   &:hover {
-    transform: scale(1.05);
+    transform: ${props => props.isDragging ? 'none' : 'scale(1.05)'};
   }
   
   ${props => props.isSelected && `
@@ -15,8 +19,22 @@ const NodeContainer = styled.g<{ isSelected: boolean; isConnecting: boolean; isC
   `}
   
   ${props => props.isConnectingFrom && `
-    filter: drop-shadow(0 0 8px #ff6b6b);
+    filter: drop-shadow(0 0 12px #ff6b6b);
+    animation: pulse 1.5s ease-in-out infinite;
   `}
+  
+  ${props => props.isDragging && `
+    filter: drop-shadow(0 0 12px #4A90E2);
+  `}
+  
+  ${props => props.isConnecting && !props.isConnectingFrom && `
+    filter: drop-shadow(0 0 6px #4A90E2);
+  `}
+  
+  @keyframes pulse {
+    0%, 100% { filter: drop-shadow(0 0 12px #ff6b6b); }
+    50% { filter: drop-shadow(0 0 20px #ff6b6b); }
+  }
 `;
 
 const NodeCircle = styled.circle<{ color: string }>`
@@ -68,6 +86,9 @@ interface MindMapNodeProps {
   canvasState: CanvasState;
   onClick: () => void;
   onDoubleClick: () => void;
+  onMove: (id: string, x: number, y: number) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }
 
 const MindMapNode: React.FC<MindMapNodeProps> = ({
@@ -77,10 +98,16 @@ const MindMapNode: React.FC<MindMapNodeProps> = ({
   isConnectingFrom,
   canvasState,
   onClick,
-  onDoubleClick
+  onDoubleClick,
+  onMove,
+  onDragStart,
+  onDragEnd
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(node.text);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0, nodeX: 0, nodeY: 0 });
+  const [hasDragged, setHasDragged] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -90,10 +117,57 @@ const MindMapNode: React.FC<MindMapNodeProps> = ({
     }
   }, [isEditing]);
 
+  // Global mouse handlers to ensure dragging works even when mouse leaves the node
+  useEffect(() => {
+    const handleGlobalMouseMove = (event: MouseEvent) => {
+      if (isDragging) {
+        const deltaX = (event.clientX - dragStart.x) / canvasState.zoom;
+        const deltaY = (event.clientY - dragStart.y) / canvasState.zoom;
+        
+        // Check if we've moved enough to consider it a drag (threshold of 5 pixels)
+        const dragDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        if (dragDistance > 5) {
+          setHasDragged(true);
+        }
+        
+        const newX = dragStart.nodeX + deltaX;
+        const newY = dragStart.nodeY + deltaY;
+        
+        onMove(node.id, newX, newY);
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      if (isDragging) {
+        setIsDragging(false);
+        if (onDragEnd) {
+          onDragEnd();
+        }
+      }
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      return () => {
+        document.removeEventListener('mousemove', handleGlobalMouseMove);
+        document.removeEventListener('mouseup', handleGlobalMouseUp);
+      };
+    }
+  }, [isDragging, dragStart, canvasState.zoom, node.id, onMove, onDragEnd]);
+
+  const handleClick = useCallback(() => {
+    if (!hasDragged) {
+      onClick();
+    }
+  }, [hasDragged, onClick]);
+
   const handleDoubleClick = () => {
-    setIsEditing(true);
-    setEditText(node.text);
-    onDoubleClick();
+    if (!hasDragged) {
+      setIsEditing(true);
+      setEditText(node.text);
+      onDoubleClick();
+    }
   };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
@@ -122,6 +196,61 @@ const MindMapNode: React.FC<MindMapNodeProps> = ({
     handleSave();
   };
 
+  // Drag event handlers
+  const handleMouseDown = useCallback((event: React.MouseEvent) => {
+    if (isEditing || isConnecting) return;
+    
+    event.preventDefault();
+    event.stopPropagation();
+    
+    setIsDragging(true);
+    setHasDragged(false);
+    setDragStart({
+      x: event.clientX,
+      y: event.clientY,
+      nodeX: node.x,
+      nodeY: node.y
+    });
+    
+    if (onDragStart) {
+      onDragStart();
+    }
+  }, [isEditing, isConnecting, node.x, node.y, onDragStart]);
+
+  const handleMouseMove = useCallback((event: React.MouseEvent) => {
+    if (!isDragging) return;
+    
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const deltaX = (event.clientX - dragStart.x) / canvasState.zoom;
+    const deltaY = (event.clientY - dragStart.y) / canvasState.zoom;
+    
+    // Check if we've moved enough to consider it a drag (threshold of 5 pixels)
+    const dragDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    if (dragDistance > 5) {
+      setHasDragged(true);
+    }
+    
+    const newX = dragStart.nodeX + deltaX;
+    const newY = dragStart.nodeY + deltaY;
+    
+    onMove(node.id, newX, newY);
+  }, [isDragging, dragStart, canvasState.zoom, node.id, onMove]);
+
+  const handleMouseUp = useCallback((event: React.MouseEvent) => {
+    if (!isDragging) return;
+    
+    event.preventDefault();
+    event.stopPropagation();
+    
+    setIsDragging(false);
+    
+    if (onDragEnd) {
+      onDragEnd();
+    }
+  }, [isDragging, onDragEnd]);
+
   const getNodeRadius = () => {
     const baseRadius = 30;
     const textLength = node.text.length;
@@ -135,8 +264,12 @@ const MindMapNode: React.FC<MindMapNodeProps> = ({
       isSelected={isSelected}
       isConnecting={isConnecting}
       isConnectingFrom={isConnectingFrom}
-      onClick={onClick}
+      isDragging={isDragging}
+      onClick={handleClick}
       onDoubleClick={handleDoubleClick}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
     >
       <NodeCircle
         cx={node.x}

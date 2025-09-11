@@ -22,6 +22,7 @@ type MindMapAction =
   | { type: 'SET_NODES'; payload: Node[] }
   | { type: 'ADD_NODE'; payload: Node }
   | { type: 'UPDATE_NODE'; payload: { id: string; updates: Partial<Node> } }
+  | { type: 'MOVE_NODE'; payload: { id: string; x: number; y: number } }
   | { type: 'DELETE_NODE'; payload: string }
   | { type: 'SET_CONNECTIONS'; payload: Connection[] }
   | { type: 'ADD_CONNECTION'; payload: Connection }
@@ -104,6 +105,22 @@ function mindMapReducer(state: MindMapState, action: MindMapAction): MindMapStat
         actionHistory: [...state.actionHistory.slice(0, state.historyIndex + 1), {
           type: 'edit_node',
           data: { id: action.payload.id, updates: action.payload.updates },
+          timestamp: Date.now()
+        }],
+        historyIndex: state.historyIndex + 1
+      };
+    
+    case 'MOVE_NODE':
+      return {
+        ...state,
+        nodes: state.nodes.map(node =>
+          node.id === action.payload.id
+            ? { ...node, x: action.payload.x, y: action.payload.y }
+            : node
+        ),
+        actionHistory: [...state.actionHistory.slice(0, state.historyIndex + 1), {
+          type: 'move_node',
+          data: { id: action.payload.id, x: action.payload.x, y: action.payload.y },
           timestamp: Date.now()
         }],
         historyIndex: state.historyIndex + 1

@@ -52,12 +52,22 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
+  const [isDraggingNode, setIsDraggingNode] = useState(false);
+  const [justFinishedDragging, setJustFinishedDragging] = useState(false);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   const { nodes, connections, canvasState, isConnecting, selectedNode } = state;
 
   // Handle canvas click to add new nodes
   const handleCanvasClick = useCallback((event: React.MouseEvent<SVGSVGElement>) => {
-    if (isConnecting) return;
+    if (isDraggingNode || justFinishedDragging) return;
+    
+    // If in connecting mode, cancel connection mode when clicking on empty space
+    if (isConnecting) {
+      setConnectingFrom(null);
+      dispatch({ type: 'SET_CONNECTING', payload: false });
+      return;
+    }
     
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -97,21 +107,30 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
     if (onCanvasClick) {
       onCanvasClick(event);
     }
-  }, [isConnecting, nodes, canvasState, dispatch, onCanvasClick]);
+  }, [isDraggingNode, justFinishedDragging, isConnecting, setConnectingFrom, dispatch, nodes, canvasState, onCanvasClick]);
 
   // Handle node click for connections
   const handleNodeClick = useCallback((node: Node) => {
     if (isConnecting) {
       if (connectingFrom && connectingFrom !== node.id) {
-        // Create connection
-        const newConnection: Connection = {
-          from: connectingFrom,
-          to: node.id,
-          style: 'solid',
-          color: '#666666',
-          thickness: 2
-        };
-        dispatch({ type: 'ADD_CONNECTION', payload: newConnection });
+        // Check if connection already exists
+        const connectionExists = connections.some(conn => 
+          (conn.from === connectingFrom && conn.to === node.id) ||
+          (conn.from === node.id && conn.to === connectingFrom)
+        );
+        
+        if (!connectionExists) {
+          // Create connection
+          const newConnection: Connection = {
+            from: connectingFrom,
+            to: node.id,
+            style: 'solid',
+            color: '#666666',
+            thickness: 2
+          };
+          dispatch({ type: 'ADD_CONNECTION', payload: newConnection });
+        }
+        
         setConnectingFrom(null);
         dispatch({ type: 'SET_CONNECTING', payload: false });
       } else {
@@ -123,7 +142,7 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
         onNodeClick(node);
       }
     }
-  }, [isConnecting, connectingFrom, dispatch, onNodeClick]);
+  }, [isConnecting, connectingFrom, connections, dispatch, onNodeClick]);
 
   // Handle node double click for editing
   const handleNodeDoubleClick = useCallback((node: Node) => {
@@ -133,19 +152,48 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
     }
   }, [dispatch, onNodeDoubleClick]);
 
+  // Handle node movement
+  const handleNodeMove = useCallback((id: string, x: number, y: number) => {
+    dispatch({ type: 'MOVE_NODE', payload: { id, x, y } });
+  }, [dispatch]);
+
+  // Handle node drag start/end
+  const handleNodeDragStart = useCallback(() => {
+    setIsDraggingNode(true);
+    setJustFinishedDragging(false);
+  }, []);
+
+  const handleNodeDragEnd = useCallback(() => {
+    setIsDraggingNode(false);
+    setJustFinishedDragging(true);
+    
+    // Reset the flag after a short delay to allow normal clicks again
+    setTimeout(() => {
+      setJustFinishedDragging(false);
+    }, 100);
+  }, []);
+
   // Handle canvas drag for panning
   const handleMouseDown = useCallback((event: React.MouseEvent<SVGSVGElement>) => {
-    if (event.target === svgRef.current) {
+    if (event.target === svgRef.current && !isDraggingNode) {
       setIsDragging(true);
       setDragStart({
         x: event.clientX - canvasState.panX,
         y: event.clientY - canvasState.panY
       });
     }
-  }, [canvasState.panX, canvasState.panY]);
+  }, [canvasState.panX, canvasState.panY, isDraggingNode]);
 
   const handleMouseMove = useCallback((event: React.MouseEvent<SVGSVGElement>) => {
-    if (isDragging) {
+    // Update mouse position for connection preview
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (rect) {
+      const x = (event.clientX - rect.left) / canvasState.zoom - canvasState.panX;
+      const y = (event.clientY - rect.top) / canvasState.zoom - canvasState.panY;
+      setMousePosition({ x, y });
+    }
+    
+    if (isDragging && !isDraggingNode) {
       const newPanX = event.clientX - dragStart.x;
       const newPanY = event.clientY - dragStart.y;
       dispatch({
@@ -153,10 +201,12 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
         payload: { panX: newPanX, panY: newPanY }
       });
     }
-  }, [isDragging, dragStart, dispatch]);
+  }, [isDragging, dragStart, dispatch, isDraggingNode, canvasState.zoom, canvasState.panX, canvasState.panY]);
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
+    setIsDraggingNode(false);
+    setJustFinishedDragging(false);
   }, []);
 
   // Handle zoom with mouse wheel
@@ -243,6 +293,28 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
           />
         ))}
         
+        {/* Temporary connection line when connecting */}
+        {isConnecting && connectingFrom && (
+          (() => {
+            const fromNode = nodes.find(n => n.id === connectingFrom);
+            if (!fromNode) return null;
+            
+            return (
+              <line
+                x1={fromNode.x}
+                y1={fromNode.y}
+                x2={mousePosition.x}
+                y2={mousePosition.y}
+                stroke="#ff6b6b"
+                strokeWidth="2"
+                strokeDasharray="5,5"
+                opacity="0.7"
+                pointerEvents="none"
+              />
+            );
+          })()
+        )}
+        
         {/* Nodes */}
         {nodes.map((node) => (
           <MindMapNode
@@ -254,6 +326,9 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
             canvasState={canvasState}
             onClick={() => handleNodeClick(node)}
             onDoubleClick={() => handleNodeDoubleClick(node)}
+            onMove={handleNodeMove}
+            onDragStart={handleNodeDragStart}
+            onDragEnd={handleNodeDragEnd}
           />
         ))}
       </SVG>
