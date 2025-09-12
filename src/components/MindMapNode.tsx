@@ -160,11 +160,20 @@ const MindMapNode: React.FC<MindMapNodeProps> = ({
     }
   }, [isDragging, dragStart, canvasState.zoom, node.id, onMove, onDragEnd]);
 
-  const handleClick = useCallback(() => {
+  const handleClick = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
     if (!hasDragged) {
       onClick();
+    } else {
+      // If we've dragged but we're in connection mode, still allow the click
+      // This prevents accidental drags from blocking connection attempts
+      if (isConnecting) {
+        onClick();
+      }
     }
-  }, [hasDragged, onClick]);
+  }, [hasDragged, onClick, isConnecting]);
 
   const handleDoubleClick = () => {
     if (!hasDragged) {
@@ -230,7 +239,6 @@ const MindMapNode: React.FC<MindMapNodeProps> = ({
     const deltaX = (event.clientX - dragStart.x) / canvasState.zoom;
     const deltaY = (event.clientY - dragStart.y) / canvasState.zoom;
     
-    // Check if we've moved enough to consider it a drag (threshold of 5 pixels)
     const dragDistance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
     if (dragDistance > 5) {
       setHasDragged(true);
@@ -303,7 +311,7 @@ const MindMapNode: React.FC<MindMapNodeProps> = ({
           y={node.y}
           fontSize={node.fontSize}
         >
-          {node.text}
+          {editText}
         </NodeText>
       )}
     </NodeContainer>

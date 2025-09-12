@@ -113,9 +113,22 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
 
   // Handle node click for connections
   const handleNodeClick = useCallback((node: Node) => {
+    console.log('Node clicked:', node.text, 'isConnecting:', isConnecting, 'connectingFrom:', connectingFrom);
+    
     if (isConnecting) {
-      if (connectingFrom && connectingFrom !== node.id) {
-        // Check if connection already exists
+      if (connectingFrom === null) {
+        // Primer clic: seleccionar nodo fuente y mantener modo de conexión activo
+        console.log('Primer clic - seleccionando nodo fuente');
+        setConnectingFrom(node.id);
+        // NO desactivar isConnecting aquí - mantener activo para permitir segundo clic
+      } else if (connectingFrom === node.id) {
+        // Clic en el mismo nodo: deseleccionar pero mantener modo de conexión activo
+        console.log('Clic en mismo nodo - deseleccionando');
+        setConnectingFrom(null);
+        // NO desactivar isConnecting aquí - mantener activo para permitir nueva selección
+      } else {
+        // Segundo clic en nodo diferente: crear conexión y desactivar modo
+        console.log('Segundo clic - creando conexión');
         const connectionExists = connections.some(conn => 
           (conn.from === connectingFrom && conn.to === node.id) ||
           (conn.from === node.id && conn.to === connectingFrom)
@@ -131,14 +144,17 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
             thickness: 2
           };
           dispatch({ type: 'ADD_CONNECTION', payload: newConnection });
+          console.log('Conexión creada:', newConnection);
         }
         
+        // Solo aquí desactivar el modo de conexión después de crear la conexión
         setConnectingFrom(null);
         dispatch({ type: 'SET_CONNECTING', payload: false });
-      } else {
-        setConnectingFrom(node.id);
+        console.log('Modo de conexión desactivado');
       }
     } else {
+      // Modo normal: solo seleccionar nodo
+      console.log('Modo normal - seleccionando nodo');
       dispatch({ type: 'SET_SELECTED_NODE', payload: node.id });
       if (onNodeClick) {
         onNodeClick(node);
@@ -301,22 +317,70 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
             const fromNode = nodes.find(n => n.id === connectingFrom);
             if (!fromNode) return null;
             
+            // Calculate connection points (edge of circles)
+            const dx = mousePosition.x - fromNode.x;
+            const dy = mousePosition.y - fromNode.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance === 0) return null;
+            
+            // Normalize direction vector
+            const unitX = dx / distance;
+            const unitY = dy / distance;
+            
+            // Calculate connection points (edge of circles)
+            const fromRadius = 30; // Base radius for from node
+            const fromX = fromNode.x + unitX * fromRadius;
+            const fromY = fromNode.y + unitY * fromRadius;
+            
             return (
-              <line
-                x1={fromNode.x}
-                y1={fromNode.y}
-                x2={mousePosition.x}
-                y2={mousePosition.y}
-                stroke="#ff6b6b"
-                strokeWidth="2"
+              <g>
+                {/* Temporary connection line */}
+                <line
+                  x1={fromX}
+                  y1={fromY}
+                  x2={mousePosition.x}
+                  y2={mousePosition.y}
+                  stroke="#4A90E2"
+                  strokeWidth="3"
+                  strokeDasharray="8,4"
+                  opacity="0.8"
+                  pointerEvents="none"
+                />
+                {/* Arrowhead pointing to mouse position */}
+                <polygon
+                  points={`${mousePosition.x},${mousePosition.y} ${mousePosition.x - 8},${mousePosition.y - 4} ${mousePosition.x - 8},${mousePosition.y + 4}`}
+                  fill="#4A90E2"
+                  opacity="0.8"
+                  pointerEvents="none"
+                />
+              </g>
+            );
+          })()
+        )}
+        
+        {/* Connection source indicator */}
+        {isConnecting && connectingFrom && (
+          (() => {
+            const fromNode = nodes.find(n => n.id === connectingFrom);
+            if (!fromNode) return null;
+            
+            return (
+              <circle
+                cx={fromNode.x}
+                cy={fromNode.y}
+                r="35"
+                fill="none"
+                stroke="#4A90E2"
+                strokeWidth="3"
                 strokeDasharray="5,5"
-                opacity="0.7"
+                opacity="0.8"
                 pointerEvents="none"
               />
             );
           })()
         )}
-        
+
         {/* Nodes */}
         {nodes.map((node) => (
           <MindMapNode

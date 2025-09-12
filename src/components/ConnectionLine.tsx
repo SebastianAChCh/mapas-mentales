@@ -67,13 +67,6 @@ const ConnectionLine: React.FC<ConnectionLineProps> = ({
   const arrowX2 = toX - arrowLength * Math.cos(Math.atan2(dy, dx) + arrowAngle);
   const arrowY2 = toY - arrowLength * Math.sin(Math.atan2(dy, dx) + arrowAngle);
 
-  // Control points for curved line (optional) - currently using straight lines
-  // const midX = (fromX + toX) / 2;
-  // const midY = (fromY + toY) / 2;
-  // const controlOffset = 50;
-  // const controlX = midX + (-dy * controlOffset) / distance;
-  // const controlY = midY + (dx * controlOffset) / distance;
-  // const pathData = `M ${fromX} ${fromY} Q ${controlX} ${controlY} ${toX} ${toY}`;
 
   return (
     <g>

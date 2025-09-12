@@ -155,7 +155,13 @@ const Toolbar: React.FC = () => {
   const { isConnecting, selectedNode, nodes } = state;
 
   const handleConnectToggle = () => {
-    dispatch({ type: 'SET_CONNECTING', payload: !isConnecting });
+    if (!isConnecting) {
+      // Activar modo de conexión
+      dispatch({ type: 'SET_CONNECTING', payload: true });
+    } else {
+      // Desactivar modo de conexión solo si el usuario hace clic en el botón
+      dispatch({ type: 'SET_CONNECTING', payload: false });
+    }
   };
 
   const handleUndo = () => {
@@ -206,8 +212,13 @@ const Toolbar: React.FC = () => {
           active={isConnecting}
           onClick={handleConnectToggle}
         >
-          {isConnecting ? '🔗 Connecting' : '🔗 Connect'}
+          {isConnecting ? '🔗 Cancel Connect' : '🔗 Connect Nodes'}
         </Button>
+        {isConnecting && (
+          <div style={{ color: '#4A90E2', fontSize: '12px', marginTop: '4px' }}>
+            Click on two nodes to connect them
+          </div>
+        )}
         <Button onClick={handleUndo}>
           ↶ Undo
         </Button>
