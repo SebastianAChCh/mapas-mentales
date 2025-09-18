@@ -195,7 +195,6 @@ const MindMapNode: React.FC<MindMapNodeProps> = ({
     if (editText.trim()) {
       // Update node text through context
       // This would be handled by the parent component
-      console.log('Saving node text:', editText);
     }
     setIsEditing(false);
   };

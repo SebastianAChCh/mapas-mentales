@@ -113,22 +113,18 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
 
   // Handle node click for connections
   const handleNodeClick = useCallback((node: Node) => {
-    console.log('Node clicked:', node.text, 'isConnecting:', isConnecting, 'connectingFrom:', connectingFrom);
     
     if (isConnecting) {
       if (connectingFrom === null) {
         // Primer clic: seleccionar nodo fuente y mantener modo de conexión activo
-        console.log('Primer clic - seleccionando nodo fuente');
         setConnectingFrom(node.id);
         // NO desactivar isConnecting aquí - mantener activo para permitir segundo clic
       } else if (connectingFrom === node.id) {
         // Clic en el mismo nodo: deseleccionar pero mantener modo de conexión activo
-        console.log('Clic en mismo nodo - deseleccionando');
         setConnectingFrom(null);
         // NO desactivar isConnecting aquí - mantener activo para permitir nueva selección
       } else {
         // Segundo clic en nodo diferente: crear conexión y desactivar modo
-        console.log('Segundo clic - creando conexión');
         const connectionExists = connections.some(conn => 
           (conn.from === connectingFrom && conn.to === node.id) ||
           (conn.from === node.id && conn.to === connectingFrom)
@@ -144,17 +140,14 @@ const MindMapCanvas: React.FC<MindMapCanvasProps> = ({
             thickness: 2
           };
           dispatch({ type: 'ADD_CONNECTION', payload: newConnection });
-          console.log('Conexión creada:', newConnection);
         }
         
         // Solo aquí desactivar el modo de conexión después de crear la conexión
         setConnectingFrom(null);
         dispatch({ type: 'SET_CONNECTING', payload: false });
-        console.log('Modo de conexión desactivado');
       }
     } else {
       // Modo normal: solo seleccionar nodo
-      console.log('Modo normal - seleccionando nodo');
       dispatch({ type: 'SET_SELECTED_NODE', payload: node.id });
       if (onNodeClick) {
         onNodeClick(node);
